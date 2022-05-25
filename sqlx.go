@@ -317,6 +317,26 @@ func (db *DB) Select(dest interface{}, query string, args ...interface{}) error 
 	return Select(db, dest, query, args...)
 }
 
+func (db *DB) NamedQueryS(dest interface{}, query string, arg interface{}) error {
+	rows, err := NamedQuery(db, query, arg)
+	if err != nil {
+		return err
+	}
+	// if something happens here, we want to make sure the rows are Closed
+	defer rows.Close()
+	return scanAll(rows, dest, false)
+}
+
+func (db *DB) NamedQueryRowS(dest interface{}, query string, arg interface{}) error {
+	q, args, err := bindNamedMapper(BindType(db.DriverName()), query, arg, mapperFor(db))
+	if err != nil {
+		return err
+	}
+
+	r := db.QueryRowx(q, args...)
+	return r.scanAny(dest, false)
+}
+
 // Get using this DB.
 // Any placeholder parameters are replaced with supplied args.
 // An error is returned if the result set is empty.
@@ -429,6 +449,26 @@ func (tx *Tx) NamedExec(query string, arg interface{}) (sql.Result, error) {
 // Any placeholder parameters are replaced with supplied args.
 func (tx *Tx) Select(dest interface{}, query string, args ...interface{}) error {
 	return Select(tx, dest, query, args...)
+}
+
+func (tx *Tx) NamedQueryS(dest interface{}, query string, arg interface{}) error {
+	rows, err := NamedQuery(tx, query, arg)
+	if err != nil {
+		return err
+	}
+	// if something happens here, we want to make sure the rows are Closed
+	defer rows.Close()
+	return scanAll(rows, dest, false)
+}
+
+func (tx *Tx) NamedQueryRowS(dest interface{}, query string, arg interface{}) error {
+	q, args, err := bindNamedMapper(BindType(tx.DriverName()), query, arg, mapperFor(tx))
+	if err != nil {
+		return err
+	}
+
+	r := tx.QueryRowx(q, args...)
+	return r.scanAny(dest, false)
 }
 
 // Queryx within a transaction.
@@ -1049,3 +1089,4 @@ func missingFields(transversals [][]int) (field int, err error) {
 	}
 	return 0, nil
 }
+
